@@ -1,0 +1,80 @@
+{
+  "architecture": "TorchVision ViT-B/16",
+  "initialization": {
+    "weights": "ViT_B_16_Weights.IMAGENET1K_V1",
+    "url": "https://download.pytorch.org/models/vit_b_16-c867db91.pth",
+    "sha256": "c867db91d3e12c6cbadabb610d73c24a546bf82d8c03a9fea34f43a712ddb0e9"
+  },
+  "reference_environment": {
+    "torch": "2.8.0+cu128",
+    "torchvision": "0.23.0+cu128",
+    "precision": "bfloat16"
+  },
+  "original_training_sources": {
+    "shared_trainer_sha256": "285712801699e4310d8fd2554b53ee1fd03330b111dec87a9307b8f5001dda0c",
+    "lavid_revision": "fa689286d168eb7daa9899239461cfffc5517de1"
+  },
+  "training": {
+    "seed": 17,
+    "epochs": 500,
+    "physical_batch_size": 32,
+    "effective_batch_size": 512,
+    "optimizer": {
+      "name": "SGD",
+      "lr": 0.01,
+      "momentum": 0.9,
+      "weight_decay": 0.0005,
+      "scheduler": "epoch cosine, T_max=500"
+    }
+  },
+  "datasets": {
+    "flowers": {
+      "classes": 102,
+      "split": "Oxford trnid and valid for training, tstid for held-out evaluation",
+      "training_images": 2040,
+      "heldout_images": 6149,
+      "metadata_sha256": {
+        "imagelabels.mat": "4903e94206bac23bf772aadf06451916df56b58fc483a62db32a97b82656651d",
+        "setid.mat": "46b8678f91fd95d3c8f4feab80d271a6c834a1dd896fe29fd3e6ad9ce5c8dccd"
+      },
+      "qwen_target": {
+        "source": "questions/flowers/logits/qwen2.5-7b_chat_50-5.json",
+        "source_sha256": "fdb051c89eabc1c51ab80947251fb7176f64893bbf0641e229028a9490b6d74d",
+        "class_order": "lavid/data/classes/flowers_classes.json",
+        "class_order_sha256": "e778110d1550f155676164d55f9f39aea9ab77a37448ad5059cdda921812d587",
+        "matrix_float64_le_sha256": "4aa24641fa99a1a27203f942c52e8b73a7b224af7f0c67694a34c4a42c09ccee",
+        "shape": [
+          102,
+          50,
+          5
+        ],
+        "reference_gradient_ratio": 2.839944325387478
+      }
+    },
+    "cub200": {
+      "classes": 200,
+      "split": "Official entries from train_test_split.txt, preserving images.txt order",
+      "training_images": 5994,
+      "heldout_images": 5794,
+      "metadata_sha256": {
+        "images.txt": "e1cfc5ed1f4bd1b838040784b6f75c44f7a25d9b31707a3adab49ec694618c1f",
+        "image_class_labels.txt": "e9df8c96d897994a245746fe2c98914b9b31f5342bddc6e8b06bdfbf45e49b02",
+        "train_test_split.txt": "8bbbfcc09b4d3c9c6e3e40c9874bd863eb6658f4f456e472df1b33d3403d2600",
+        "classes.txt": "66a884364a73edde6c71eeb7fd5d8bb791e80979b64759bd6a5d5d209bdc02ba"
+      },
+      "qwen_target": {
+        "source": "questions/cub200/logits/qwen2.5-7b_chat_50-5.json",
+        "source_sha256": "6ad69aa1da6e11e5e3b45a2ca78fe5574e7ed603ce6cdd6ca6bd7899d4eebef2",
+        "class_order": "lavid/data/classes/cub200_classes.json",
+        "class_order_sha256": "01c71d182cdd698440db53be0514e9b88bdfeb3eb7a96c8d5236590a48c34df5",
+        "matrix_float64_le_sha256": "cee32abeddaf3f2f59bc05dc1c919b3b6888a7f8de2f29ec1a2a42f96b3f804a",
+        "shape": [
+          200,
+          50,
+          5
+        ],
+        "reference_gradient_ratio": 2.493964284658432
+      }
+    }
+  }
+}
