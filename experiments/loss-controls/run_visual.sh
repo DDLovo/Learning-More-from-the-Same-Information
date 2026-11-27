@@ -4,10 +4,13 @@ set -eo pipefail
 usage() {
   cat <<'EOF'
 Usage:
-  bash experiments/loss-controls/run_visual.sh DATASET BACKBONE IMAGES AUTHOR_SOURCE OUTPUT [VIT_WEIGHTS]
+  bash experiments/loss-controls/run_visual.sh [--match-resnet18-h] DATASET BACKBONE IMAGES AUTHOR_SOURCE OUTPUT [VIT_WEIGHTS]
 
 Datasets: flowers, cub200.
 Backbones: resnet18, mobilenetv2, vit_small_patch16. ViT requires VIT_WEIGHTS.
+Completed runs per dataset: CNNs A–I and G★; ViT-S/16 A, B, C, E, G.
+Use --match-resnet18-h for the completed ViT-S/16 G and H calibration runs.
+Use run_waterbirds.sh for the completed Waterbirds-95 subset.
 Environment: PYTHON (default python), DEVICE (default cuda), WORKERS (optional).
 EOF
 }
@@ -20,6 +23,11 @@ bad_arguments() {
 if [[ ${1:-} == --help || ${1:-} == -h ]]; then
   usage
   exit 0
+fi
+matched=false
+if [[ ${1:-} == --match-resnet18-h ]]; then
+  matched=true
+  shift
 fi
 (( $# == 5 || $# == 6 )) || bad_arguments
 dataset=$1
@@ -40,6 +48,10 @@ case "$backbone" in
     ;;
   *) bad_arguments ;;
 esac
+if [[ $matched == true ]]; then
+  [[ $backbone == vit_small_patch16 ]] || bad_arguments
+  out="$out/resnet18-h-matched"
+fi
 
 python=${PYTHON:-python}
 device=${DEVICE:-cuda}
@@ -63,8 +75,16 @@ calibration="$out/$dataset-$backbone-gstar.json"
   --signature "$signature" --out "$code"
 
 matrix=(--architecture "$backbone" --code "$code" --workers "${WORKERS:-4}" "${weights[@]}" "${common[@]}")
-"$python" -m ecg_lavid.train_visual_loss_matrix "${matrix[@]}" \
-  --calibrate-gradmatch --gradient-calibration "$calibration"
-"$python" -m ecg_lavid.train_visual_loss_matrix "${matrix[@]}" --arms "${arms[@]}"
-"$python" -m ecg_lavid.train_visual_loss_matrix "${matrix[@]}" \
-  --arms ecoc-soft-ce-gradmatch --gradient-calibration "$calibration"
+if [[ $matched == true ]]; then
+  match_args=(--match-resnet18-h --gradient-calibration "$out/$dataset-reference.json")
+  "$python" -m ecg_lavid.train_visual_loss_matrix "${matrix[@]}" "${match_args[@]}" --calibrate-gradmatch
+  "$python" -m ecg_lavid.train_visual_loss_matrix "${matrix[@]}" "${match_args[@]}" --arms ecoc-soft-ce ecoc
+elif [[ $backbone == vit_small_patch16 ]]; then
+  "$python" -m ecg_lavid.train_visual_loss_matrix "${matrix[@]}" --arms ce raw-onehot prob-onehot squentropy ecoc-soft-ce
+else
+  "$python" -m ecg_lavid.train_visual_loss_matrix "${matrix[@]}" \
+    --calibrate-gradmatch --gradient-calibration "$calibration"
+  "$python" -m ecg_lavid.train_visual_loss_matrix "${matrix[@]}" --arms "${arms[@]}"
+  "$python" -m ecg_lavid.train_visual_loss_matrix "${matrix[@]}" \
+    --arms ecoc-soft-ce-gradmatch --gradient-calibration "$calibration"
+fi
