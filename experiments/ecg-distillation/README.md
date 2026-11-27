@@ -27,6 +27,17 @@ bash experiments/ecg-distillation/run.sh train-muse runs/ecg
 
 Both student stages use seeds 17, 29, and 43 for 25 epochs at 10% of training patients with auxiliary weight 0.4. They run the CE, signature, and permuted-signature arms and score on fold 9. The run configuration records the target fingerprint, patient subset, seed, schedule, and class permutation. Use the trainer directly to evaluate on fold 10 or change the training budget.
 
+### Muse text reports and native token probabilities
+
+The launcher generates the frozen discriminative bank of twelve questions and uses it for both scoring modes with the same dated model and provider. Each native response supplies the first visible token distribution over A–E. Each text response is a JSON object with a declared answer and five self-reported probabilities. The scorer preserves the first valid response for each item and writes both soft signatures, both one-hot signatures, a request manifest, and metrics against the frozen rubric. Requests contain the public class name and question text. [Text probability scorer](../../ecg_lavid/muse_text_probability.py)
+
+```bash
+bash experiments/ecg-distillation/run.sh score-muse-text runs/ecg
+bash experiments/ecg-distillation/run.sh train-muse-text runs/ecg
+```
+
+The student stage uses the same CNN recipe at 10% of training patients for seeds 17, 29, 43, 71, 101, and 137. It shares the hard-target runs when the two one-hot signatures match exactly. All checkpoints are selected and scored on fold 9 for this comparison. The scorer's `--native-only` switch rebuilds the two native targets from a completed scoring directory. The optional `--bundle` switch collects the separate teacher-only condition in which one request contains all 48 items.
+
 ### Teacher correctness and code controls
 
 After obtaining both signatures, `controls` writes the reference-answer and matched-argmax probability-swap controls under `runs/ecg/ecg-teacher-controls/`. Each signature is accepted by the trainer's `--teacher` argument. The `codes` stage generates the five-way and binary simplex codebooks and runs a CE/five-way comparison on six paired seeds. The trainer also accepts the binary simplex file with `--codebook`. With the five-way codebook, `--shuffle-codebook-rows` fixes a class-independent assignment of the same target frequencies to records.
@@ -42,4 +53,27 @@ The following example trains on the Qwen target and reports the held-out fold us
 python -m ecg_lavid.train --data runs/ecg/ptbxl-rhythm.npz --teacher runs/ecg/ecg-qwen.json \
   --out runs/ecg-qwen-test --device cuda --methods ce lavid permuted \
   --seeds 17 29 43 --epochs 25 --fractions 0.1 --lavid-weight 0.4
+```
+
+## Record-level R–R interval targets
+
+The fixed two-question bank covers the Uni-G mean sinus R–R interval (`RR_Mean_Global`) and the standard deviation of normal R–R intervals (`RR_StdDev_Global`). The trainer joins released PTB-XL+ v1.0.1 measurements to the prepared ECG IDs and fits the five answer bins on each seed's training patients. It compares rhythm CE with CE plus matched targets and CE plus whole-row targets from another patient in the same rhythm and validity group. The latter two arms share the binning and valid-record mask. The student receives the waveform, and the auxiliary labels come from the released measurements. [PTB-XL+ v1.0.1](https://physionet.org/content/ptb-xl-plus/1.0.1/) · [Uni-G field definitions](https://physionet.org/files/ptb-xl-plus/1.0.1/features/feature_description.csv)
+
+```bash
+mkdir -p data/ptb-xl-plus
+curl --fail --location https://physionet.org/files/ptb-xl-plus/1.0.1/features/unig_features.csv \
+  --output data/ptb-xl-plus/unig_features.csv
+bash experiments/ecg-distillation/run_rr.sh fit runs/ecg/ptbxl-rhythm.npz \
+  data/ptb-xl-plus/unig_features.csv runs/rr
+bash experiments/ecg-distillation/run_rr.sh replay runs/ecg/ptbxl-rhythm.npz runs/rr
+```
+
+The launcher runs the completed 10% and full-training-patient comparisons for seeds 17, 29, and 43. It selects each checkpoint using fold 9 rhythm macro-F1 and evaluates on fold 10. The trainer reports a frozen per-rhythm ridge readout, with standardization and ridge fitting confined to training patients. The replay uses the recorded batch size and precision and checks the reproduced auxiliary probabilities against the saved predictions. It saves the two raw five-way output vectors and their fixed ordinal projection. Use the training device and runtime build for exact replay. [RR launcher](run_rr.sh)
+
+The released global ECGDeli peaks provide a second reference on the same PTB-XL test records. LUDB v1.0.1 supplies an external check using the manually annotated lead-II QRS peaks. The preparation stages fetch annotations and waveforms from their pinned releases and keep generated files under the supplied directories. [PTB-XL+ ECGDeli release](https://physionet.org/files/ptb-xl-plus/1.0.1/fiducial_points/ecgdeli/) · [LUDB v1.0.1](https://physionet.org/content/ludb/1.0.1/)
+
+```bash
+bash experiments/ecg-distillation/run_rr.sh ecgdeli data/ptb-xl-plus \
+  data/ptb-xl-plus/unig_features.csv runs/rr
+bash experiments/ecg-distillation/run_rr.sh ludb data/ludb-1.0.1 runs/rr
 ```

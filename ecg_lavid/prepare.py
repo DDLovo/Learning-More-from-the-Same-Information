@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 import time
-from urllib.error import URLError
+from urllib.error import HTTPError, URLError
 from urllib.request import urlopen
 
 import numpy as np
@@ -25,18 +25,22 @@ METADATA_SHA256 = {
 }
 
 
-def download_file(root, relative):
+def download_file(root, relative, *, base_url=SOURCE, allow_missing=False):
     destination = root / relative
     if destination.is_file() and destination.stat().st_size:
-        return
+        return True
     destination.parent.mkdir(parents=True, exist_ok=True)
     for delay in (0, 1, 3, 8):
         time.sleep(delay)
         try:
-            with urlopen(SOURCE + relative, timeout=25) as response:
+            with urlopen(base_url + relative, timeout=25) as response:
                 content = response.read()
             if not content:
                 raise OSError("Empty download")
+        except HTTPError as error:
+            if allow_missing and error.code == 404:
+                return False
+            failure = error
         except (URLError, OSError) as error:
             failure = error
         else:
@@ -44,7 +48,7 @@ def download_file(root, relative):
                 temporary.write(content)
                 temporary_path = Path(temporary.name)
             temporary_path.replace(destination)
-            return
+            return True
     raise OSError(f"Could not download {relative}") from failure
 
 

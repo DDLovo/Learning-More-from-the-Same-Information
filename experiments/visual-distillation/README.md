@@ -2,6 +2,8 @@
 
 The hybrid trains a randomly initialized vision student with the author's two-view MLKD objective and logit standardization, plus a weighted MSE on an independent projection of the student's weak-view features. A fixed supervised ResNet-50 supplies weak- and strong-view logits to MLKD. The auxiliary MSE uses either published Qwen2.5-7B signatures or a fixed five-way class code softened to match the Qwen signatures' aggregate class-centered energy. A separate code-only arm uses single-view cross-entropy plus the code MSE without the vision teacher. Each method predicts with its classification head. [LaViD paper](https://proceedings.mlr.press/v306/liang26ac.html) · [A–I target definitions](../loss-controls/)
 
+The ImageNet-1K pretrained comparison uses TorchVision ViT-B/16. [ViT-B/16 reproduction](vit-b16/)
+
 ## Flowers-102 ResNet-18 reproduction
 
 Follow the [shared setup](../SETUP.md) including the pinned LaViD checkout. Put `jpg/`, `imagelabels.mat`, and `setid.mat` in `data/flowers102`. The [Flowers launcher](run_flowers.sh) builds the historical code, trains a ResNet-50 teacher at seed 17, and uses the checkpoint selected by held-out classification loss for all students. It runs the three Qwen hybrids first, then their code-hybrid and code-only comparisons at seeds 17, 29, and 43. The paired hybrids share the teacher checkpoint, initialization, and augmentation schedule. The CNN schedule is 240 epochs with batch size 16 and SGD at learning rate 0.01, momentum 0.9, and weight decay 0.0005. Learning rates drop by a factor of 0.1 at epochs 150, 180, and 210. [Oxford Flowers-102](https://www.robots.ox.ac.uk/~vgg/data/flowers/102/)
@@ -17,9 +19,15 @@ To cache original-size RGB training images, run `python experiments/visual-disti
 The [benchmark launcher](run_benchmark.sh) takes a dataset, student architecture, image root, source checkout, output directory, and student seed. It generates or reuses the common cohort and teacher, then runs `lavid-ls-qwen`, `lavid-ls-ecoc`, and `ecoc-only`. Repeat with seeds 17, 29, and 43 under the same output directory to compare paired runs. Valid student architectures are `resnet18`, `mobilenetv2`, and `shufflenetv2` (x1.0).
 
 ```bash
-bash experiments/visual-distillation/run_benchmark.sh cub200 mobilenetv2 \
+METHOD=lavid-ls-qwen bash experiments/visual-distillation/run_benchmark.sh cub200 resnet18 \
+  data/CUB_200_2011 lavid-upstream runs/visual-grid 17
+METHOD=lavid-ls-qwen bash experiments/visual-distillation/run_benchmark.sh oxfordpets resnet18 \
+  data/pets lavid-upstream runs/visual-grid 17
+METHOD=ecoc-only bash experiments/visual-distillation/run_benchmark.sh cub200 mobilenetv2 \
   data/CUB_200_2011 lavid-upstream runs/visual-grid 17
 ```
+
+The completed Flowers-102 grid covers all three methods and all three student architectures at the three seeds above. Completed CUB-200-2011 comparisons include the three-seed ResNet-18 Qwen hybrid and the three-seed code-only conditions for each architecture. The Oxford-IIIT Pet ResNet-18 Qwen hybrid also completed at all three seeds. These runs use the common launcher, the same dataset-specific teacher checkpoint for both hybrids, and the label order documented below.
 
 | CLI dataset | Required layout and train/test size |
 | --- | --- |
@@ -31,6 +39,8 @@ bash experiments/visual-distillation/run_benchmark.sh cub200 mobilenetv2 \
 | `caltech101` | Root with `101_ObjectCategories/`. Uses the author's split seed 27 after sorting files within each class. Both face labels are retained and share a language signature. 4,310 / 4,367. [Dataset](https://data.caltech.edu/records/mzrjq-6wc02) |
 
 The launcher uses `$AUTHOR_SOURCE/questions/<dataset>/logits/qwen2.5-7b_chat_50-5.json` for the first five datasets. For Aircraft, Pets, Cars, and Caltech it also invokes [the cohort prep script](prepare_benchmark_cohort.py). Its `cohort.csv` and `cohort.json` sidecar preserve the split and label order for code generation, teacher training, and student training. The author code uses a single held-out split for evaluation and checkpoint selection, including 6,149 Flowers images. The paper appendix gives a Flowers split of 6,552/1,637. [Author data split code](https://github.com/lliangthomas/lavid/blob/fa689286d168eb7daa9899239461cfffc5517de1/utils.py#L44-L97)
+
+For the three completed dataset paths above, the Oxford Flowers and CUB readers use the original official split files directly. The Pet reader builds the shared manifest from `annotations/trainval.txt`, `annotations/test.txt`, and the ordered class names at the pinned LaViD commit. The training loader decodes original images. The Flowers launcher also accepts the pixel-verified RGB cache described above.
 
 ### Caltech-101 7B target
 
@@ -56,4 +66,6 @@ The example uses the Instruct snapshot, stored under `data/qwen7b-instruct`. Pre
 
 ### Individual benchmark arms
 
-Use `ecg_lavid.train_visual_benchmark --method lavid-ls-qwen` and then `--method lavid-ls-ecoc` under the same output root for a paired hybrid. Provide the same `--teacher-checkpoint` and change `--target` between the Qwen signature and generated code. `ecoc-only` takes the code and runs without a visual checkpoint. If caching, pass `--teacher-logit-cache` to both hybrid runs and add `--record-teacher-logits` to the Qwen run.
+Set `METHOD` to `lavid-ls-qwen`, `lavid-ls-ecoc`, or `ecoc-only` to run one arm. Run the Qwen hybrid before the code hybrid at the same dataset, backbone, seed, and output root. Both hybrid arms use the same ResNet-50 checkpoint. The code-only launcher needs the published signature to reconstruct the code scale and proceeds directly to student training. Set `TEACHER_LOGIT_CACHE=runs/visual-teacher-logits` to record the teacher's BF16 logits in the Qwen run and replay them in the code hybrid. The launcher namespaces the cache by dataset. The cache binds the teacher checkpoint, cohort, paired augmentation order, and training environment.
+
+The direct trainer accepts the same methods through `ecg_lavid.train_visual_benchmark`, with `--teacher-checkpoint` for hybrid methods and `--target` for the corresponding teacher signature or generated code. To reuse a previously recorded teacher cache on another backbone with the same dataset and seed, pass the cache's dataset directory as `--teacher-logit-cache`. An individual recording run also supplies `--record-teacher-logits`.
