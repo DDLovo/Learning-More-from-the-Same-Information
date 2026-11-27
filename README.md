@@ -1,5 +1,7 @@
 # Learning More from the Same Information
 
+**Preprint v1** · [English PDF](preprint/redundant-supervision-preprint-v1-en.pdf) · [中文 PDF](preprint/redundant-supervision-preprint-v1-zh.pdf)
+
 Can a classifier learn more from each labeled example if we ask it to predict the same label in several different ways?
 
 We began with ECG rhythm classification. A language model can answer questions about a rhythm's expected heart rate, atrial activity, and beat regularity. A waveform classifier can learn to predict those answers alongside the rhythm label. This raises a question about where any gain comes from. How much depends on the medical meaning of the answers? How much can be recovered by giving each class a consistent set of auxiliary targets?
