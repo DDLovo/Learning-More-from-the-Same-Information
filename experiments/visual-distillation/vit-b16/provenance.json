@@ -49,6 +49,19 @@
           5
         ],
         "reference_gradient_ratio": 2.839944325387478
+      },
+      "five_way_code": {
+        "code_seed": 271828,
+        "scale_about_uniform": 0.6754907643547167,
+        "matrix_float64_le_sha256": "7382445c2a58afec39409e8ae5a536c17f226f952e6888a9e6b3ccd6b1eafce9",
+        "resnet18_h_first_batch": {
+          "model": "ResNet-18",
+          "seed": 17,
+          "parameter": "stem convolution",
+          "batch_size": 16,
+          "auxiliary_weight": 50.0,
+          "weighted_gradient_ratio": 2.839944325387478
+        }
       }
     },
     "cub200": {
