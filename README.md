@@ -18,6 +18,8 @@ The symbol assignments need only class IDs. The ECG experiments use hard targets
 | [A–I loss controls](experiments/loss-controls/) | Does the gain depend on the code, the extra head, or the loss? One control gives every class the same target. Image interventions measure how accuracy changes when foreground or background cues are disrupted. |
 | [Fine-grained visual distillation](experiments/visual-distillation/) | With the same ResNet-50 teacher, how much does a student lose when Qwen's answers are replaced by a five-way code? The benchmark also evaluates code supervision on its own. |
 
+On Flowers and CUB, the [paired foreground analysis](experiments/loss-controls/gradcam/) asks a complementary question. After a background is removed or replaced, how does the spatial evidence for the correct species change? It compares A and H on the same images and relates their Grad-CAM maps to the released foreground masks.
+
 ## What we observed on Flowers-102
 
 Each row uses a ResNet-18 student. Values are mean top-1 accuracy over the same three seeds at epoch 240, using the public LaViD code's split of 2,040 training and 6,149 evaluation images. [LaViD paper](https://proceedings.mlr.press/v306/liang26ac.html) · [Upstream implementation](https://github.com/lliangthomas/lavid/tree/fa689286d168eb7daa9899239461cfffc5517de1)
